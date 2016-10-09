@@ -67,6 +67,18 @@ public:
     client_->send_to(reinterpret_cast<uint8_t*>(&s), sizeof(s));
   }
 
+  void clear_standalone_modifiers(void) {
+    krbn::operation_type_clear_standalone_modifiers_struct s;
+    client_->send_to(reinterpret_cast<uint8_t*>(&s), sizeof(s));
+  }
+
+  void add_standalone_modifier(krbn::key_code from_key_code, krbn::key_code to_key_code) {
+    krbn::operation_type_add_standalone_modifier_struct s;
+    s.from_key_code = from_key_code;
+    s.to_key_code = to_key_code;
+    client_->send_to(reinterpret_cast<uint8_t*>(&s), sizeof(s));
+  }
+
   void clear_devices(void) {
     krbn::operation_type_clear_devices_struct s;
     client_->send_to(reinterpret_cast<uint8_t*>(&s), sizeof(s));
