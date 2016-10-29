@@ -21,6 +21,11 @@ public:
     states_[static_cast<size_t>(krbn::modifier_flag::right_option)] = std::make_unique<state>("option", "⌥");
     states_[static_cast<size_t>(krbn::modifier_flag::right_command)] = std::make_unique<state>("command", "⌘");
     states_[static_cast<size_t>(krbn::modifier_flag::fn)] = std::make_unique<state>("fn", "fn");
+    states_[static_cast<size_t>(krbn::modifier_flag::hyper)] = std::make_unique<state>("hyper", "hyper");
+    states_[static_cast<size_t>(krbn::modifier_flag::hyper_minus_cmd)] = std::make_unique<state>("hyper_minus_cmd", "hyper_minus_cmd");
+    states_[static_cast<size_t>(krbn::modifier_flag::hyper_minus_opt)] = std::make_unique<state>("hyper_minus_opt", "hyper_minus_opt");
+    states_[static_cast<size_t>(krbn::modifier_flag::hyper_minus_shift)] = std::make_unique<state>("hyper_minus_shift", "hyper_minus_shift");
+    states_[static_cast<size_t>(krbn::modifier_flag::hyper_minus_ctrl)] = std::make_unique<state>("hyper_minus_ctrl", "hyper_minus_ctrl");
   }
 
   void reset(void) {
@@ -132,6 +137,26 @@ public:
       bits |= (0x1 << 7);
     }
 
+    if (pressed(krbn::modifier_flag::hyper)) {
+      bits |= (0x1 << 0) | (0x1 << 2) | (0x1 << 3) | (0x1 << 1);
+    }
+
+    if (pressed(krbn::modifier_flag::hyper_minus_cmd)) {
+      bits |= (0x1 << 0) | (0x1 << 2) | (0x1 << 1);
+    }
+
+    if (pressed(krbn::modifier_flag::hyper_minus_opt)) {
+      bits |= (0x1 << 0) | (0x1 << 3) | (0x1 << 1);
+    }
+
+    if (pressed(krbn::modifier_flag::hyper_minus_shift)) {
+      bits |= (0x1 << 0) | (0x1 << 2) | (0x1 << 3);
+    }
+
+    if (pressed(krbn::modifier_flag::hyper_minus_ctrl)) {
+      bits |= (0x1 << 2) | (0x1 << 3) | (0x1 << 1);
+    }
+
     return bits;
   }
 
@@ -165,6 +190,21 @@ public:
     }
     if (pressed(krbn::modifier_flag::right_command)) {
       bits |= NX_COMMANDMASK | NX_DEVICERCMDKEYMASK;
+    }
+    if (pressed(krbn::modifier_flag::hyper)) {
+      bits |= NX_CONTROLMASK | NX_ALTERNATEMASK | NX_COMMANDMASK | NX_SHIFTMASK;
+    }
+    if (pressed(krbn::modifier_flag::hyper_minus_cmd)) {
+      bits |= NX_CONTROLMASK | NX_ALTERNATEMASK | NX_SHIFTMASK;
+    }
+    if (pressed(krbn::modifier_flag::hyper_minus_opt)) {
+      bits |= NX_CONTROLMASK | NX_COMMANDMASK | NX_SHIFTMASK;
+    }
+    if (pressed(krbn::modifier_flag::hyper_minus_shift)) {
+      bits |= NX_CONTROLMASK | NX_ALTERNATEMASK | NX_COMMANDMASK;
+    }
+    if (pressed(krbn::modifier_flag::hyper_minus_ctrl)) {
+      bits |= NX_ALTERNATEMASK | NX_COMMANDMASK | NX_SHIFTMASK;
     }
     if (pressed(krbn::modifier_flag::fn)) {
       bits |= NX_SECONDARYFNMASK;
@@ -240,7 +280,6 @@ public:
   }
 
   CGEventFlags get_cg_event_flags_for_mouse_events(void) const {
-    // The CGEventFlags and IOOptionBits are same for now.
     return get_io_option_bits(krbn::key_code::vk_none);
   }
 
