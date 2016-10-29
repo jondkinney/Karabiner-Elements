@@ -138,20 +138,25 @@ public:
     });
   }
 
-  void clear_devices_configuration(void) {
+  void clear_device_configurations(void) {
     gcd_utility::dispatch_sync_in_main_queue(^{
-      devices_configuration_.clear();
+      device_configurations_.clear();
     });
   }
 
-  void add_device_configuration(const krbn::device_identifiers_struct& device_identifiers_struct, bool ignore) {
+  void add_device_configuration(const krbn::device_identifiers_struct& device_identifiers_struct,
+                                const krbn::device_configuration_struct& device_configuration_struct) {
     gcd_utility::dispatch_sync_in_main_queue(^{
-      devices_configuration_.push_back(std::make_pair(device_identifiers_struct, ignore));
+      device_configurations_.push_back(std::make_pair(device_identifiers_struct, device_configuration_struct));
     });
   }
 
-  void complete_devices_configuration(void) {
+  void complete_device_configurations(void) {
     gcd_utility::dispatch_sync_in_main_queue(^{
+      for (auto&& it : hids_) {
+        (it.second)->set_keyboard_type(get_keyboard_type(*(it.second)));
+      }
+
       grab_devices();
       output_devices_json();
     });
@@ -207,6 +212,7 @@ private:
     iokit_utility::log_matching_device(logger::get_logger(), device);
 
     auto dev = std::make_unique<human_interface_device>(logger::get_logger(), device);
+    dev->set_keyboard_type(get_keyboard_type(*dev));
     dev->set_is_grabbable_callback(std::bind(&device_grabber::is_grabbable_callback, this, std::placeholders::_1));
     dev->set_grabbed_callback(std::bind(&device_grabber::grabbed_callback, this, std::placeholders::_1));
     dev->set_value_callback(std::bind(&device_grabber::value_callback,
@@ -288,7 +294,7 @@ private:
 
     if (auto key_code = krbn::types::get_key_code(usage_page, usage)) {
       bool pressed = integer_value;
-      event_manipulator_.handle_keyboard_event(device_registry_entry_id, *key_code, pressed);
+      event_manipulator_.handle_keyboard_event(device_registry_entry_id, *key_code, device.get_keyboard_type(), pressed);
 
     } else if (auto pointing_button = krbn::types::get_pointing_button(usage_page, usage)) {
       event_manipulator_.handle_pointing_event(device_registry_entry_id,
@@ -383,13 +389,13 @@ private:
     return false;
   }
 
-  bool is_ignored_device(const human_interface_device& device) {
+  boost::optional<const krbn::device_configuration_struct&> find_device_configuration_struct(const human_interface_device& device) {
     if (auto vendor_id = device.get_vendor_id()) {
       if (auto product_id = device.get_product_id()) {
         bool is_keyboard = device.is_keyboard();
         bool is_pointing_device = device.is_pointing_device();
 
-        for (const auto& d : devices_configuration_) {
+        for (const auto& d : device_configurations_) {
           if (d.first.vendor_id == *vendor_id &&
               d.first.product_id == *product_id &&
               d.first.is_keyboard == is_keyboard &&
@@ -399,12 +405,26 @@ private:
         }
       }
     }
+    return boost::none;
+  }
+
+  bool is_ignored_device(const human_interface_device& device) {
+    if (auto s = find_device_configuration_struct(device)) {
+      return s->ignore;
+    }
 
     if (device.is_pointing_device()) {
       return true;
     }
 
     return false;
+  }
+
+  krbn::keyboard_type get_keyboard_type(const human_interface_device& device) {
+    if (auto s = find_device_configuration_struct(device)) {
+      return s->keyboard_type;
+    }
+    return krbn::keyboard_type::none;
   }
 
   void output_devices_json(void) {
@@ -452,7 +472,7 @@ private:
   IOHIDManagerRef _Nullable manager_;
   std::unique_ptr<iopm_client> iopm_client_;
 
-  std::vector<std::pair<krbn::device_identifiers_struct, bool>> devices_configuration_;
+  std::vector<std::pair<krbn::device_identifiers_struct, krbn::device_configuration_struct>> device_configurations_;
 
   std::unordered_map<IOHIDDeviceRef, std::unique_ptr<human_interface_device>> hids_;
 

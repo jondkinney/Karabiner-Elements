@@ -1,6 +1,6 @@
 #import "DevicesTableViewController.h"
-#import "ConfigurationCoreModel.h"
 #import "ConfigurationManager.h"
+#import "CoreConfigurationModel.h"
 #import "DevicesTableCellView.h"
 #import "NotificationKeys.h"
 
@@ -35,8 +35,11 @@
 
 - (void)valueChanged:(id)sender {
   NSInteger row = [self.tableView rowForView:sender];
-  DevicesTableCellView* cellView = [self.tableView viewAtColumn:0 row:row makeIfNecessary:NO];
-  [self.configurationManager.configurationCoreModel setDeviceIgnore:(cellView.checkbox.state != NSOnState) deviceIdentifiers:cellView.deviceIdentifiers];
+  DevicesTableCellView* cellViewCheckbox = [self.tableView viewAtColumn:0 row:row makeIfNecessary:NO];
+  DevicesTableCellView* cellViewPopUp = [self.tableView viewAtColumn:1 row:row makeIfNecessary:NO];
+  [self.configurationManager.configurationCoreModel setDeviceConfiguration:cellViewCheckbox.deviceIdentifiers
+                                                                    ignore:(cellViewCheckbox.checkbox.state != NSOnState)
+                                                              keyboardType:[cellViewPopUp.popUpButton.selectedItem.representedObject unsignedIntValue]];
   [self.configurationManager save];
 }
 

@@ -48,7 +48,8 @@
 //                         "is_keyboard": true,
 //                         "is_pointing_device": false
 //                     },
-//                     "ignore": true
+//                     "ignore": true,
+//                     "keyboard_type": 45
 //                 }
 //             ]
 //         },
@@ -59,11 +60,11 @@
 //     ]
 // }
 
-class configuration_core final {
+class core_configuration final {
 public:
-  configuration_core(const configuration_core&) = delete;
+  core_configuration(const core_configuration&) = delete;
 
-  configuration_core(spdlog::logger& logger, const std::string& file_path) : logger_(logger), file_path_(file_path), loaded_(false) {
+  core_configuration(spdlog::logger& logger, const std::string& file_path) : logger_(logger), file_path_(file_path), loaded_(false) {
     std::ifstream input(file_path_);
     if (input) {
       try {
@@ -75,7 +76,7 @@ public:
     }
   }
 
-  configuration_core(spdlog::logger& logger) : configuration_core(logger, get_file_path()) {
+  core_configuration(spdlog::logger& logger) : core_configuration(logger, get_file_path()) {
   }
 
   static std::string get_file_path(void) {
@@ -101,29 +102,44 @@ public:
     return get_key_code_pair_from_json_object(profile["fn_function_keys"]);
   }
 
-  std::vector<std::pair<krbn::device_identifiers_struct, bool>> get_current_profile_devices(void) {
-    std::vector<std::pair<krbn::device_identifiers_struct, bool>> v;
+  std::vector<std::pair<krbn::device_identifiers_struct, krbn::device_configuration_struct>> get_current_profile_devices(void) {
+    std::vector<std::pair<krbn::device_identifiers_struct, krbn::device_configuration_struct>> v;
 
     auto profile = get_current_profile();
     if (profile["devices"].is_array()) {
-      for (const auto& device : profile["devices"]) {
+      for (auto&& device : profile["devices"]) {
         if (device["identifiers"].is_object() &&
             device["identifiers"]["vendor_id"].is_number() &&
             device["identifiers"]["product_id"].is_number() &&
             device["identifiers"]["is_keyboard"].is_boolean() &&
             device["identifiers"]["is_pointing_device"].is_boolean() &&
             device["ignore"].is_boolean()) {
-          krbn::device_identifiers_struct s;
-          s.vendor_id = krbn::vendor_id(static_cast<uint32_t>(device["identifiers"]["vendor_id"]));
-          s.product_id = krbn::product_id(static_cast<uint32_t>(device["identifiers"]["product_id"]));
-          s.is_keyboard = device["identifiers"]["is_keyboard"];
-          s.is_pointing_device = device["identifiers"]["is_pointing_device"];
-          v.push_back(std::make_pair(s, device["ignore"]));
+          krbn::device_identifiers_struct device_identifiers_struct;
+          device_identifiers_struct.vendor_id = krbn::vendor_id(static_cast<uint32_t>(device["identifiers"]["vendor_id"]));
+          device_identifiers_struct.product_id = krbn::product_id(static_cast<uint32_t>(device["identifiers"]["product_id"]));
+          device_identifiers_struct.is_keyboard = device["identifiers"]["is_keyboard"];
+          device_identifiers_struct.is_pointing_device = device["identifiers"]["is_pointing_device"];
+
+          krbn::device_configuration_struct device_configuration_struct;
+          device_configuration_struct.ignore = device["ignore"];
+          device_configuration_struct.keyboard_type = krbn::keyboard_type::none;
+          // keyboard_type is optional
+          if (device["keyboard_type"].is_number()) {
+            device_configuration_struct.keyboard_type = krbn::keyboard_type(static_cast<uint32_t>(device["keyboard_type"]));
+          }
+
+          v.push_back(std::make_pair(device_identifiers_struct, device_configuration_struct));
         }
       }
     }
 
     return v;
+  }
+
+  // std::vector<from,to>
+  std::vector<std::pair<krbn::key_code, krbn::key_code>> get_current_profile_standalone_modifiers(void) {
+    auto profile = get_current_profile();
+    return get_key_code_pair_from_json_object(profile["standalone_modifiers"]);
   }
 
   std::string get_current_profile_json(void) {

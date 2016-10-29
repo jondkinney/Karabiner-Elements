@@ -1,4 +1,4 @@
-#import "ConfigurationCoreModel.h"
+#import "CoreConfigurationModel.h"
 
 @interface DeviceConfiguration ()
 
@@ -9,7 +9,7 @@
 @implementation DeviceConfiguration
 @end
 
-@interface ConfigurationCoreModel ()
+@interface CoreConfigurationModel ()
 
 @property(copy, readwrite) NSArray<NSDictionary*>* simpleModifications;
 @property(copy, readwrite) NSArray<NSDictionary*>* fnFunctionKeys;
@@ -17,7 +17,7 @@
 
 @end
 
-@implementation ConfigurationCoreModel
+@implementation CoreConfigurationModel
 
 - (instancetype)initWithProfile:(NSDictionary*)profile {
   self = [super init];
@@ -30,7 +30,11 @@
     NSMutableArray<DeviceConfiguration*>* devices = [NSMutableArray new];
     if (profile[@"devices"]) {
       for (NSDictionary* device in profile[@"devices"]) {
-        DeviceIdentifiers* deviceIdentifiers = [[DeviceIdentifiers alloc] initWithDictionary:device];
+        NSDictionary* identifiers = device[@"identifiers"];
+        if (!identifiers) {
+          continue;
+        }
+        DeviceIdentifiers* deviceIdentifiers = [[DeviceIdentifiers alloc] initWithDictionary:identifiers];
 
         BOOL found = NO;
         for (DeviceConfiguration* d in devices) {
@@ -43,10 +47,12 @@
           DeviceConfiguration* deviceConfiguration = [DeviceConfiguration new];
           deviceConfiguration.deviceIdentifiers = deviceIdentifiers;
           deviceConfiguration.ignore = [device[@"ignore"] boolValue];
+          deviceConfiguration.keyboardType = [device[@"keyboard_type"] unsignedIntValue];
           [devices addObject:deviceConfiguration];
         }
       }
     }
+    _devices = devices;
   }
 
   return self;
@@ -109,12 +115,13 @@
   self.fnFunctionKeys = fnFunctionKeys;
 }
 
-- (void)setDeviceIgnore:(BOOL)ignore deviceIdentifiers:(DeviceIdentifiers*)deviceIdentifiers {
+- (void)setDeviceConfiguration:(DeviceIdentifiers*)deviceIdentifiers ignore:(BOOL)ignore keyboardType:(uint32_t)keyboardType {
   NSMutableArray* devices = [NSMutableArray arrayWithArray:self.devices];
   BOOL __block found = NO;
   [devices enumerateObjectsUsingBlock:^(DeviceConfiguration* obj, NSUInteger index, BOOL* stop) {
     if ([obj.deviceIdentifiers isEqualToDeviceIdentifiers:deviceIdentifiers]) {
       obj.ignore = ignore;
+      obj.keyboardType = keyboardType;
 
       found = YES;
       *stop = YES;
@@ -125,6 +132,7 @@
     DeviceConfiguration* deviceConfiguration = [DeviceConfiguration new];
     deviceConfiguration.deviceIdentifiers = deviceIdentifiers;
     deviceConfiguration.ignore = ignore;
+    deviceConfiguration.keyboardType = keyboardType;
     [devices addObject:deviceConfiguration];
   }
 
@@ -159,6 +167,7 @@
     [array addObject:@{
       @"identifiers" : [d.deviceIdentifiers toDictionary],
       @"ignore" : @(d.ignore),
+      @"keyboard_type" : @(d.keyboardType),
     }];
   }
   return array;

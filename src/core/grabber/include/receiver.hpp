@@ -46,6 +46,7 @@ public:
     device_grabber_.stop_grabbing();
     event_manipulator_.clear_simple_modifications();
     event_manipulator_.clear_fn_function_keys();
+    event_manipulator_.clear_standalone_modifiers();
   }
 
 private:
@@ -135,7 +136,7 @@ private:
           break;
 
         case krbn::operation_type::clear_devices:
-          device_grabber_.clear_devices_configuration();
+          device_grabber_.clear_device_configurations();
           break;
 
         case krbn::operation_type::add_device:
@@ -143,12 +144,25 @@ private:
             logger::get_logger().error("invalid size for krbn::operation_type::add_device ({0})", n);
           } else {
             auto p = reinterpret_cast<krbn::operation_type_add_device_struct*>(&(buffer_[0]));
-            device_grabber_.add_device_configuration(p->device_identifiers_struct, p->ignore);
+            device_grabber_.add_device_configuration(p->device_identifiers_struct, p->device_configuration_struct);
+          }
+          break;
+
+        case krbn::operation_type::clear_standalone_modifiers:
+          event_manipulator_.clear_standalone_modifiers();
+          break;
+
+        case krbn::operation_type::add_standalone_modifier:
+          if (n < sizeof(krbn::operation_type_add_standalone_modifier_struct)) {
+            logger::get_logger().error("invalid size for krbn::operation_type::add_standalone_modifier ({0})", n);
+          } else {
+            auto p = reinterpret_cast<krbn::operation_type_add_standalone_modifier_struct*>(&(buffer_[0]));
+            event_manipulator_.add_standalone_modifier(p->from_key_code, p->to_key_code);
           }
           break;
 
         case krbn::operation_type::complete_devices:
-          device_grabber_.complete_devices_configuration();
+          device_grabber_.complete_device_configurations();
           break;
 
         default:

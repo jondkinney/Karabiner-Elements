@@ -26,6 +26,8 @@ enum class operation_type : uint8_t {
   add_simple_modification,
   clear_fn_function_keys,
   add_fn_function_key,
+  clear_standalone_modifiers,
+  add_standalone_modifier,
   clear_devices,
   add_device,
   complete_devices,
@@ -212,11 +214,23 @@ enum class product_id : uint32_t {
 enum class location_id : uint32_t {
 };
 
+enum class keyboard_type : uint32_t {
+  none = 0,
+  ansi = 40,
+  iso = 41,
+  jis = 42,
+};
+
 struct device_identifiers_struct {
   vendor_id vendor_id;
   product_id product_id;
   bool is_keyboard;
   bool is_pointing_device;
+};
+
+struct device_configuration_struct {
+  bool ignore;
+  keyboard_type keyboard_type;
 };
 
 class types final {
@@ -243,6 +257,31 @@ public:
       return modifier_flag::fn;
     default:
       return modifier_flag::zero;
+    }
+  }
+
+  static key_code get_key_code(modifier_flag flag) {
+    switch (flag) {
+      case modifier_flag::left_control:
+        return key_code(kHIDUsage_KeyboardLeftControl);
+      case modifier_flag::left_shift:
+        return key_code(kHIDUsage_KeyboardLeftShift);
+      case modifier_flag::left_option:
+        return key_code(kHIDUsage_KeyboardLeftAlt);
+      case modifier_flag::left_command:
+        return key_code(kHIDUsage_KeyboardLeftGUI);
+      case modifier_flag::right_control:
+        return key_code(kHIDUsage_KeyboardRightControl);
+      case modifier_flag::right_shift:
+        return key_code(kHIDUsage_KeyboardRightShift);
+      case modifier_flag::right_option:
+        return key_code(kHIDUsage_KeyboardRightAlt);
+      case modifier_flag::right_command:
+        return key_code(kHIDUsage_KeyboardRightGUI);
+      case modifier_flag::fn:
+        return key_code::vk_fn_modifier;
+      default:
+        return key_code(0);
     }
   }
 
@@ -772,6 +811,20 @@ struct operation_type_add_fn_function_key_struct {
   key_code to_key_code;
 };
 
+struct operation_type_clear_standalone_modifiers_struct {
+  operation_type_clear_standalone_modifiers_struct(void) : operation_type(operation_type::clear_standalone_modifiers) {}
+
+  const operation_type operation_type;
+};
+
+struct operation_type_add_standalone_modifier_struct {
+  operation_type_add_standalone_modifier_struct(void) : operation_type(operation_type::add_standalone_modifier) {}
+
+  const operation_type operation_type;
+  key_code from_key_code;
+  key_code to_key_code;
+};
+
 struct operation_type_clear_devices_struct {
   operation_type_clear_devices_struct(void) : operation_type(operation_type::clear_devices) {}
 
@@ -783,7 +836,7 @@ struct operation_type_add_device_struct {
 
   const operation_type operation_type;
   device_identifiers_struct device_identifiers_struct;
-  bool ignore;
+  device_configuration_struct device_configuration_struct;
 };
 
 struct operation_type_complete_devices_struct {
@@ -818,6 +871,7 @@ struct operation_type_post_modifier_flags_struct {
   const operation_type operation_type;
   key_code key_code;
   IOOptionBits flags;
+  keyboard_type keyboard_type;
 };
 
 struct operation_type_post_key_struct {
@@ -827,6 +881,7 @@ struct operation_type_post_key_struct {
   key_code key_code;
   event_type event_type;
   IOOptionBits flags;
+  keyboard_type keyboard_type;
   bool repeat;
 };
 }

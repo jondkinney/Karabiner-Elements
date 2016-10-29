@@ -7,10 +7,11 @@
 
 @property(readonly) DeviceIdentifiers* deviceIdentifiers;
 @property BOOL ignore;
+@property uint32_t keyboardType;
 
 @end
 
-@interface ConfigurationCoreModel : NSObject
+@interface CoreConfigurationModel : NSObject
 
 @property(copy, readonly) NSArray<NSDictionary*>* simpleModifications;
 @property(copy, readonly) NSArray<NSDictionary*>* fnFunctionKeys;
@@ -27,6 +28,6 @@
 
 - (void)replaceFnFunctionKey:(NSString*)from to:(NSString*)to;
 
-- (void)setDeviceIgnore:(BOOL)ignore deviceIdentifiers:(DeviceIdentifiers*)deviceIdentifiers;
+- (void)setDeviceConfiguration:(DeviceIdentifiers*)deviceIdentifiers ignore:(BOOL)ignore keyboardType:(uint32_t)keyboardType;
 
 @end
