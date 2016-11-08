@@ -36,7 +36,16 @@ public:
   }
 
   void grab_mouse_events(void) {
-    event_tap_manager_ = std::make_unique<event_tap_manager>();
+    event_tap_manager_ = std::make_unique<event_tap_manager>(std::bind(&event_manipulator::pre_tap, this, std::placeholders::_1));
+  }
+
+  void pre_tap(CGEventType type) {
+    if (type == kCGEventLeftMouseDown || type == kCGEventLeftMouseUp || type == kCGEventRightMouseDown || type == kCGEventRightMouseUp) {
+      auto standalone_modifier = modifier_flag_manager_.get_standalone_modifier();
+      if (standalone_modifier != krbn::modifier_flag::zero) {
+        post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), krbn::keyboard_type::none, true);
+      }
+    }
   }
 
   void ungrab_mouse_events(void) {
@@ -109,6 +118,14 @@ public:
 
   void add_fn_function_key(krbn::key_code from_key_code, krbn::key_code to_key_code) {
     fn_function_keys_.add(from_key_code, to_key_code);
+  }
+
+  void clear_standalone_modifiers(void) {
+    standalone_modifiers_.clear();
+  }
+
+  void add_standalone_modifier(krbn::key_code from_key_code, krbn::key_code to_key_code) {
+    standalone_modifiers_.add(from_key_code, to_key_code);
   }
 
   void create_event_dispatcher_client(void) {
@@ -220,6 +237,11 @@ public:
         toggle_caps_lock_state();
         key_repeat_manager_.stop();
       }
+      return;
+    }
+
+    if (process_standalone_modifier_key(to_key_code, keyboard_type, pressed)) {
+      key_repeat_manager_.stop();
       return;
     }
 
@@ -460,6 +482,52 @@ private:
     boost::optional<krbn::key_code> from_key_code_;
   };
 
+  bool process_standalone_modifier_key(krbn::key_code key_code, krbn::keyboard_type keyboard_type, bool pressed) {
+    auto modifier_flag = krbn::types::get_modifier_flag(key_code);
+    auto standalone_modifier = modifier_flag_manager_.get_standalone_modifier();
+    if (pressed) {
+      if (modifier_flag != krbn::modifier_flag::zero) {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), keyboard_type, true);
+        }
+        if (!standalone_modifiers_.get(key_code)) {
+          return false;
+        } else {
+          modifier_flag_manager_.set_standalone(modifier_flag);
+        }
+        return true;
+      } else {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), keyboard_type, true);
+        }
+        return false;
+      }
+    } else {
+      if ((modifier_flag != krbn::modifier_flag::zero) && (standalone_modifier != krbn::modifier_flag::zero) && (modifier_flag == standalone_modifier)) {
+        if (!post_standalone_modifier_key(key_code, keyboard_type)) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), keyboard_type, true);
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), keyboard_type, false);
+        }
+        return true;
+      } else {
+        if (standalone_modifier != krbn::modifier_flag::zero) {
+          post_modifier_flag_event(krbn::types::get_key_code(standalone_modifier), keyboard_type, true);
+        }
+        return false;
+      }
+    }
+  }
+
+  bool post_standalone_modifier_key(krbn::key_code key_code, krbn::keyboard_type keyboard_type) {
+    if (auto to_key_code = standalone_modifiers_.get(key_code)) {
+      post_key(*to_key_code, *to_key_code, keyboard_type, true, false);
+      post_key(*to_key_code, *to_key_code,  keyboard_type,false, false);
+      modifier_flag_manager_.reset_standalone();
+      return true;
+    }
+    return false;
+  }
+
   bool post_modifier_flag_event(krbn::key_code key_code, krbn::keyboard_type keyboard_type, bool pressed) {
     auto operation = pressed ? manipulator::modifier_flag_manager::operation::increase : manipulator::modifier_flag_manager::operation::decrease;
 
@@ -470,6 +538,7 @@ private:
       auto flags = modifier_flag_manager_.get_io_option_bits(key_code);
       event_dispatcher_manager_.post_modifier_flags(key_code, flags, keyboard_type);
 
+      modifier_flag_manager_.reset_standalone();
       return true;
     }
 
@@ -509,6 +578,7 @@ private:
 
   simple_modifications simple_modifications_;
   simple_modifications fn_function_keys_;
+  simple_modifications standalone_modifiers_;
 
   manipulated_keys manipulated_keys_;
   manipulated_keys manipulated_fn_keys_;

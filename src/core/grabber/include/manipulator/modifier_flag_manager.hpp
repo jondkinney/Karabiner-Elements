@@ -92,6 +92,18 @@ public:
     return true;
   }
 
+  void set_standalone(krbn::modifier_flag modifier_flag) {
+    standalone_modifier = modifier_flag;
+  }
+
+  void reset_standalone(void) {
+    standalone_modifier = krbn::modifier_flag::zero;
+  }
+
+  krbn::modifier_flag get_standalone_modifier(void) {
+    return standalone_modifier;
+  }
+
   uint8_t get_hid_report_bits(void) const {
     uint8_t bits = 0;
 
@@ -295,5 +307,6 @@ private:
   };
 
   std::vector<std::unique_ptr<state>> states_;
+  krbn::modifier_flag standalone_modifier;
 };
 }

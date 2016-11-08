@@ -8,10 +8,12 @@ namespace manipulator {
 class event_tap_manager final {
 public:
   event_tap_manager(const event_tap_manager&) = delete;
+  typedef std::function<void(CGEventType)> callback;
 
-  event_tap_manager(void) : event_tap_(nullptr),
-                            run_loop_source_(nullptr),
-                            last_flags_(0) {
+  event_tap_manager(const callback& tap_callback) : event_tap_(nullptr),
+                                                    tap_callback_(tap_callback),
+                                                    run_loop_source_(nullptr),
+                                                    last_flags_(0) {
     // Observe flags changed and all mouse events
     auto mask = CGEventMaskBit(kCGEventFlagsChanged) |
                 CGEventMaskBit(kCGEventLeftMouseDown) |
@@ -69,18 +71,21 @@ private:
   static CGEventRef _Nullable static_callback(CGEventTapProxy _Nullable proxy, CGEventType type, CGEventRef _Nullable event, void* _Nonnull refcon) {
     auto self = static_cast<event_tap_manager*>(refcon);
     if (self) {
-      return self->callback(proxy, type, event);
+      return self->_callback(proxy, type, event);
     }
     return nullptr;
   }
 
-  CGEventRef _Nullable callback(CGEventTapProxy _Nullable proxy, CGEventType type, CGEventRef _Nullable event) {
+  CGEventRef _Nullable _callback(CGEventTapProxy _Nullable proxy, CGEventType type, CGEventRef _Nullable event) {
     if (type == kCGEventTapDisabledByTimeout) {
       logger::get_logger().info("Re-enable event_tap_ by kCGEventTapDisabledByTimeout");
       CGEventTapEnable(event_tap_, true);
     } else if (type == kCGEventFlagsChanged) {
       last_flags_ = CGEventGetFlags(event);
     } else if (event) {
+      if (this->tap_callback_) {
+        this->tap_callback_(type);
+      }
       CGEventSetFlags(event, last_flags_);
     }
     return event;
@@ -89,5 +94,6 @@ private:
   CFMachPortRef _Nullable event_tap_;
   CFRunLoopSourceRef _Nullable run_loop_source_;
   CGEventFlags last_flags_;
+  callback tap_callback_;
 };
 }
